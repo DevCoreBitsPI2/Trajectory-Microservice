@@ -1,9 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { CreateTrajectoryDto } from './dto/create-trajectory.dto';
 import { UpdateTrajectoryDto } from './dto/update-trajectory.dto';
+import { NATS_SERVICE } from 'src/config';
+import { ClientProxy } from '@nestjs/microservices';
+import { PrismaService } from 'src/lib/prisma';
 
 @Injectable()
 export class TrajectoryService {
+  constructor(
+    @Inject(NATS_SERVICE) private readonly client: ClientProxy,
+    private readonly prisma: PrismaService
+  ){}
+
   create(createTrajectoryDto: CreateTrajectoryDto) {
     return 'This action adds a new trajectory';
   }

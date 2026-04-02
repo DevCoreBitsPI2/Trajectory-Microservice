@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model career_history {
+  id_record               Int                      @id @default(autoincrement())
+  description             String
+  event_date              DateTime                 @db.Date
+  type                    String                   @db.VarChar(50)
+  id_employee             Int
+  created_at              DateTime                 @default(dbgenerated("CURRENT_DATE")) @db.Date
+  performance_evaluations performance_evaluations?
+}
+
+model performance_evaluations {
+  id_evaluation   Int             @id @default(autoincrement())
+  id_record       Int?            @unique
+  id_employee     Int
+  id_director     Int
+  score           Float
+  observations    String?
+  evaluation_date DateTime        @db.Date
+  created_at      DateTime        @default(dbgenerated("CURRENT_DATE")) @db.Date
+  career_history  career_history? @relation(fields: [id_record], references: [id_record], onDelete: Cascade, onUpdate: NoAction, map: "fk_history")
+}
