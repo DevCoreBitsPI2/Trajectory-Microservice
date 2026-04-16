@@ -1,59 +1,58 @@
 import { Injectable, Logger, HttpStatus, Inject } from '@nestjs/common';
-import { CreateCareerHistoryDto } from './dto/create-career-history.dto';
-import { UpdateCareerHistoryDto } from './dto/update-career-history.dto';
+import { CreatePerformanceEvaluationDto } from './dto/create-performance-evaluation.dto';
+import { UpdatePerformanceEvaluationDto } from './dto/update-performance-evaluation.dto';
 import { NATS_SERVICE } from 'src/config';
 import { PrismaService } from 'src/lib/prisma';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { PaginationDto } from 'src/common';
-import { create } from 'domain';
+import { stat } from 'fs';
 
 @Injectable()
-export class CareerHistoryService {
-
-  private readonly logger = new Logger('career history service')
-
+export class PerformanceEvaluationService {
   constructor(
-    // @Inject(NATS_SERVICE) private readonly client: ClientProxy,
+    // @Inject(NATS_SERVICE) private readonly natsClient: ClientProxy,
     private readonly prisma: PrismaService
-  ){}
+  ) {}
 
-  async create(createCareerHistoryDto: CreateCareerHistoryDto) {
-    try{
-      return await this.prisma.career_history.create({
-        data:{
-          description: createCareerHistoryDto.description,
-          event_date: createCareerHistoryDto.event_date,
-          type: createCareerHistoryDto.type,
-          id_employee: createCareerHistoryDto.id_employee,
-          created_at: new Date()
+  async create(createPerformanceEvaluationDto: CreatePerformanceEvaluationDto) {
+    try {
+      return await this.prisma.performance_evaluations.create({
+        data: {
+          id_record: createPerformanceEvaluationDto.id_record,
+          id_employee: createPerformanceEvaluationDto.id_employee,
+          id_director: createPerformanceEvaluationDto.id_director,
+          score: createPerformanceEvaluationDto.score,
+          observations: createPerformanceEvaluationDto.observations,
+          evaluation_date: createPerformanceEvaluationDto.evaluation_date,
+          created_at: new Date(),
         }
-      })
+      });
     } catch (error) {
       throw new RpcException({
         status: HttpStatus.BAD_REQUEST,
         message: error instanceof Error ? error.message : 'Error desconocido',
-      })
+      });
     }
   }
 
   async findAll(paginationDto: PaginationDto) {
     try{
-      const total = await this.prisma.career_history.count();
+      const total = await this.prisma.performance_evaluations.count();
       const currentPage = paginationDto.page;
       const perPage = paginationDto.limit;
-
+      
       return {
-        data: await this.prisma.career_history.findMany({
+        data: await this.prisma.performance_evaluations.findMany({
           skip: (currentPage - 1) * perPage,
           take: perPage,
-      }),
-      meta: {
-        total,
-        page: currentPage,
-        lastPage: Math.ceil(total / perPage),
+        }),
+        meta: {
+          total,
+          page: currentPage,
+          lastPage: Math.ceil(total / perPage),
         },
       };
-    } catch (error) {
+    } catch (error){
       throw new RpcException({
         status: HttpStatus.BAD_REQUEST,
         message: error instanceof Error ? error.message : 'Error desconocido',
@@ -63,18 +62,17 @@ export class CareerHistoryService {
 
   async findOne(id: number) {
     try {
-      const career_history = await this.prisma.career_history.findUnique({
-        where: {id_record: id},
+      const performance_evaluation = await this.prisma.performance_evaluations.findUnique({
+        where: {id_evaluation: id}
       });
 
-      if (!career_history) {
+      if (!performance_evaluation) {
         throw new RpcException({
           status: HttpStatus.NOT_FOUND,
-          message: `Historico de carrera con id ${id} no encontrada`,
+          message: `Evaluación de desempeño con id ${id} no encontrada`,
         });
       }
-
-      return career_history;
+      return performance_evaluation
     } catch (error) {
       if (error instanceof RpcException) throw error;
       throw new RpcException({
@@ -84,14 +82,14 @@ export class CareerHistoryService {
     }
   }
 
-  async update(id: number, updateCareerHistoryDto: UpdateCareerHistoryDto) {
+  async update(id: number, updatePerformanceEvaluationDto: UpdatePerformanceEvaluationDto) {
     try {
-      await this.findOne(id); 
+      await this.findOne(id);
 
-      const { id: _, ...data } = updateCareerHistoryDto;
+      const { id: _, ...data } = updatePerformanceEvaluationDto;
 
-      return await this.prisma.career_history.update({
-        where: { id_record: id },
+      return await this.prisma.performance_evaluations.update({
+        where: {id_evaluation: id},
         data,
       });
     } catch (error) {
@@ -101,15 +99,14 @@ export class CareerHistoryService {
         message: error instanceof Error ? error.message : 'Error desconocido',
       })
     }
-
   }
 
   async remove(id: number) {
     try {
       await this.findOne(id);
 
-      return await this.prisma.career_history.delete({
-        where: { id_record: id },
+      return await this.prisma.performance_evaluations.delete({
+        where: {id_evaluation: id},
       });
     } catch (error) {
       if (error instanceof RpcException) throw error;
