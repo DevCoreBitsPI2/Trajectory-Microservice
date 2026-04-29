@@ -1,10 +1,10 @@
 import { Injectable, Logger, HttpStatus, Inject } from '@nestjs/common';
 import { CreateCareerHistoryDto } from './dto/create-career-history.dto';
 import { UpdateCareerHistoryDto } from './dto/update-career-history.dto';
-import { NATS_SERVICE } from 'src/config';
-import { PrismaService } from 'src/lib/prisma';
+import { NATS_SERVICE } from '@/src/config';
+import { PrismaService } from '@/src/lib/prisma';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from '@/src/common';
 import { create } from 'domain';
 
 @Injectable()

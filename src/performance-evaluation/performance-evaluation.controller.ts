@@ -3,7 +3,7 @@ import { MessagePattern, Payload } from '@nestjs/microservices';
 import { PerformanceEvaluationService } from './performance-evaluation.service';
 import { CreatePerformanceEvaluationDto } from './dto/create-performance-evaluation.dto';
 import { UpdatePerformanceEvaluationDto } from './dto/update-performance-evaluation.dto';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from '@/src/common';
 
 @Controller()
 export class PerformanceEvaluationController {

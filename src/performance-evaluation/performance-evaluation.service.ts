@@ -1,10 +1,10 @@
 import { Injectable, Logger, HttpStatus, Inject } from '@nestjs/common';
 import { CreatePerformanceEvaluationDto } from './dto/create-performance-evaluation.dto';
 import { UpdatePerformanceEvaluationDto } from './dto/update-performance-evaluation.dto';
-import { NATS_SERVICE } from 'src/config';
-import { PrismaService } from 'src/lib/prisma';
+import { NATS_SERVICE } from '@/src/config';
+import { PrismaService } from '@/src/lib/prisma';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from '@/src/common';
 import { stat } from 'fs';
 
 @Injectable()

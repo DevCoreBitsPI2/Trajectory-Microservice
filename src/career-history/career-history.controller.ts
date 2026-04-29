@@ -3,7 +3,7 @@ import { MessagePattern, Payload } from '@nestjs/microservices';
 import { CareerHistoryService } from './career-history.service';
 import { CreateCareerHistoryDto } from './dto/create-career-history.dto';
 import { UpdateCareerHistoryDto } from './dto/update-career-history.dto';
-import { PaginationDto } from 'src/common';
+import { PaginationDto } from '@/src/common';
 
 @Controller()
 export class CareerHistoryController {
