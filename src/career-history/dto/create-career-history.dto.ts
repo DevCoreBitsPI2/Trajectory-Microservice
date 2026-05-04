@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsDate, IsEnum, IsNumber, IsPositive, IsString } from 'class-validator';
+import { IsDate, IsEnum, IsNumber, IsOptional, IsPositive, IsString } from 'class-validator';
 import { career_history_type } from '@prisma/client';
 import { career_type_change, CareerTypeChangeListDto } from '../enum/career_type_change';
 
@@ -19,4 +19,9 @@ export class CreateCareerHistoryDto {
     @IsNumber()
     @IsPositive()
     id_employee: number
+
+    @IsOptional()
+    @IsNumber()
+    @IsPositive()
+    id_evaluation?: number
 }

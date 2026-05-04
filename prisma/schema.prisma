@@ -14,19 +14,22 @@ model career_history {
   type                    career_history_type
   id_employee             Int
   created_at              DateTime                 @default(dbgenerated("CURRENT_DATE")) @db.Date
-  performance_evaluations performance_evaluations?
+  id_evaluation           Int?
+  performance_evaluations performance_evaluations? @relation(fields: [id_evaluation], references: [id_evaluation], onDelete: NoAction)
 }
 
 model performance_evaluations {
-  id_evaluation   Int             @id @default(autoincrement())
-  id_record       Int?            @unique
-  id_employee     Int
-  id_director     Int
-  score           Float
-  observations    String?
-  evaluation_date DateTime        @db.Date
-  created_at      DateTime        @default(dbgenerated("CURRENT_DATE")) @db.Date
-  career_history  career_history? @relation(fields: [id_record], references: [id_record], onDelete: Cascade, onUpdate: NoAction, map: "fk_history")
+  id_evaluation         Int              @id @default(autoincrement())
+  id_director           Int
+  observations          String?
+  evaluation_date       DateTime         @db.Date
+  created_at            DateTime         @default(dbgenerated("CURRENT_DATE")) @db.Date
+  communication         Float            @default(0) @db.Real
+  technical_proficiency Float            @default(0) @db.Real
+  leadership_influence  Float            @default(0) @db.Real
+  innovation            Float            @default(0) @db.Real
+  reliability           Float            @default(0) @db.Real
+  career_history        career_history[]
 }
 
 enum career_history_type {

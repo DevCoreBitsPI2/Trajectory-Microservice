@@ -25,7 +25,8 @@ export class CareerHistoryService {
           event_date: createCareerHistoryDto.event_date,
           type: createCareerHistoryDto.type,
           id_employee: createCareerHistoryDto.id_employee,
-          created_at: new Date()
+          created_at: new Date(),
+          id_evaluation: createCareerHistoryDto.id_evaluation,
         }
       })
     } catch (error) {
