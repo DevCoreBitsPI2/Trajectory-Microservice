@@ -18,13 +18,15 @@ export class PerformanceEvaluationService {
     try {
       return await this.prisma.performance_evaluations.create({
         data: {
-          id_record: createPerformanceEvaluationDto.id_record,
-          id_employee: createPerformanceEvaluationDto.id_employee,
           id_director: createPerformanceEvaluationDto.id_director,
-          score: createPerformanceEvaluationDto.score,
           observations: createPerformanceEvaluationDto.observations,
           evaluation_date: createPerformanceEvaluationDto.evaluation_date,
           created_at: new Date(),
+          communication: createPerformanceEvaluationDto.communication,
+          technical_proficiency: createPerformanceEvaluationDto.technical_proficiency,
+          leadership_influence: createPerformanceEvaluationDto.leadership_influence,
+          innovation: createPerformanceEvaluationDto.innovation,
+          reliability: createPerformanceEvaluationDto.reliability,
         }
       });
     } catch (error) {
@@ -86,11 +88,11 @@ export class PerformanceEvaluationService {
     try {
       await this.findOne(id);
 
-      const { id: _, ...data } = updatePerformanceEvaluationDto;
+      const { id: _, career_history, ...data } = updatePerformanceEvaluationDto as any;
 
       return await this.prisma.performance_evaluations.update({
         where: {id_evaluation: id},
-        data,
+        data,     
       });
     } catch (error) {
       if (error instanceof RpcException) throw error;
