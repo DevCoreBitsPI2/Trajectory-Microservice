@@ -1,15 +1,18 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpStatus, Inject } from '@nestjs/common';
+import { ClientProxy, RpcException } from '@nestjs/microservices';
+import { firstValueFrom } from 'rxjs';
 import { CreatePerformanceEvaluationDto } from './dto/create-performance-evaluation.dto';
 import { UpdatePerformanceEvaluationDto } from './dto/update-performance-evaluation.dto';
 import { ReportFilterDto } from './dto/report-filter.dto';
+import { GenerateAreaReportDto } from './dto/generate-area-report.dto';
 import { PrismaService } from '@/src/lib/prisma';
-import { RpcException } from '@nestjs/microservices';
 import { PaginationDto } from '@/src/common';
+import { NATS_SERVICE } from '@/src/config';
 
 @Injectable()
 export class PerformanceEvaluationService {
   constructor(
-    // @Inject(NATS_SERVICE) private readonly natsClient: ClientProxy,
+    @Inject(NATS_SERVICE) private readonly natsClient: ClientProxy,
     private readonly prisma: PrismaService
   ) {}
 
@@ -195,6 +198,95 @@ export class PerformanceEvaluationService {
       throw new RpcException({
         status: HttpStatus.BAD_REQUEST,
         message: error instanceof Error ? error.message : 'Error desconocido al generar reporte',
+      });
+    }
+  }
+
+  async generateAreaReport(dto: GenerateAreaReportDto) {
+    try {
+      const area = await firstValueFrom(
+        this.natsClient.send({ cmd: 'findOneArea' }, dto.areaId)
+      );
+
+      const positions = await firstValueFrom(
+        this.natsClient.send({ cmd: 'findPositionsByArea' }, { id_area: dto.areaId })
+      );
+      const positionIds = positions.map(p => p.id_position);
+
+      if (positionIds.length === 0) {
+        return {
+          area: { id: area.id_area, name: area.name },
+          data: [],
+          meta: { totalEmployees: 0 },
+          message: 'El área no tiene posiciones activas',
+        };
+      }
+
+      const employees = await firstValueFrom(
+        this.natsClient.send({ cmd: 'findEmployeesByPositionIds' }, { positionIds })
+      );
+      const employeeIds = employees.map(e => e.id_employee);
+
+      if (employeeIds.length === 0) {
+        return {
+          area: { id: area.id_area, name: area.name },
+          data: [],
+          meta: { totalEmployees: 0 },
+          message: 'No hay empleados activos en esta área',
+        };
+      }
+
+      const report = await this.generateConsolidatedReport({
+        employeeIds,
+        startDate: dto.startDate,
+        endDate: dto.endDate,
+        export: dto.export,
+      } as any);
+
+      const employeesMap = new Map(employees.map(e => [e.id_employee, e]));
+      const enrichedData = (report.data || []).map(entry => ({
+        ...entry,
+        employee: employeesMap.get(entry.id_employee) ?? null,
+      }));
+
+      const areaAverages = enrichedData.reduce(
+        (acc, curr) => {
+          acc.communication += curr.averages.communication;
+          acc.technical_proficiency += curr.averages.technical_proficiency;
+          acc.leadership_influence += curr.averages.leadership_influence;
+          acc.innovation += curr.averages.innovation;
+          acc.reliability += curr.averages.reliability;
+          return acc;
+        },
+        { communication: 0, technical_proficiency: 0, leadership_influence: 0, innovation: 0, reliability: 0 },
+      );
+
+      const evaluationsCount = enrichedData.length || 1;
+      const response = {
+        area: { id: area.id_area, name: area.name, description: area.description },
+        totalPositions: positionIds.length,
+        totalEmployeesInArea: employeeIds.length,
+        totalEmployeesWithEvaluations: enrichedData.length,
+        totalEvaluations: report.meta?.totalEvaluations ?? 0,
+        areaAverages: {
+          communication: Number((areaAverages.communication / evaluationsCount).toFixed(2)),
+          technical_proficiency: Number((areaAverages.technical_proficiency / evaluationsCount).toFixed(2)),
+          leadership_influence: Number((areaAverages.leadership_influence / evaluationsCount).toFixed(2)),
+          innovation: Number((areaAverages.innovation / evaluationsCount).toFixed(2)),
+          reliability: Number((areaAverages.reliability / evaluationsCount).toFixed(2)),
+        },
+        overallScore: report.meta?.overallScore ?? null,
+        message: enrichedData.length === 0 && employeeIds.length > 0
+          ? `Hay ${employeeIds.length} empleado(s) en el área pero ninguno tiene evaluaciones de desempeño en el rango seleccionado`
+          : report.message ?? null,
+      };
+
+      if (report?.csv) response['csv'] = report.csv;
+      return response;
+    } catch (error) {
+      throw new RpcException({
+        status: HttpStatus.BAD_REQUEST,
+        message: error instanceof Error ? error.message : 'Error desconocido al generar reporte por área',
       });
     }
   }

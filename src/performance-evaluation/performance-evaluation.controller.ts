@@ -4,6 +4,7 @@ import { PerformanceEvaluationService } from './performance-evaluation.service';
 import { CreatePerformanceEvaluationDto } from './dto/create-performance-evaluation.dto';
 import { UpdatePerformanceEvaluationDto } from './dto/update-performance-evaluation.dto';
 import { ReportFilterDto } from './dto/report-filter.dto';
+import { GenerateAreaReportDto } from './dto/generate-area-report.dto';
 import { PaginationDto } from '@/src/common';
 
 @Controller()
@@ -28,6 +29,11 @@ export class PerformanceEvaluationController {
   @MessagePattern({cmd: 'generateConsolidatedReport'})
   generateConsolidatedReport(@Payload() filter: ReportFilterDto) {
     return this.performanceEvaluationService.generateConsolidatedReport(filter);
+  }
+
+  @MessagePattern({cmd: 'generateAreaConsolidatedReport'})
+  generateAreaReport(@Payload() dto: GenerateAreaReportDto) {
+    return this.performanceEvaluationService.generateAreaReport(dto);
   }
 
   @MessagePattern({cmd: 'updatePerformanceEvaluation'})
