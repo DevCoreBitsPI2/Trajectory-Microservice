@@ -38,6 +38,4 @@ export class CreatePerformanceEvaluationDto {
   @IsNumber()
   @Min(0)
   reliability: number;
-
-  career_history?: any[];
 }

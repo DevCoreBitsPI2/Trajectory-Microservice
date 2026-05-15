@@ -1,11 +1,10 @@
-import { Injectable, Logger, HttpStatus, Inject } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { CreatePerformanceEvaluationDto } from './dto/create-performance-evaluation.dto';
 import { UpdatePerformanceEvaluationDto } from './dto/update-performance-evaluation.dto';
-import { NATS_SERVICE } from '@/src/config';
+import { ReportFilterDto } from './dto/report-filter.dto';
 import { PrismaService } from '@/src/lib/prisma';
-import { ClientProxy, RpcException } from '@nestjs/microservices';
+import { RpcException } from '@nestjs/microservices';
 import { PaginationDto } from '@/src/common';
-import { stat } from 'fs';
 
 @Injectable()
 export class PerformanceEvaluationService {
@@ -62,6 +61,144 @@ export class PerformanceEvaluationService {
     }
   }
 
+  async generateConsolidatedReport(filter: ReportFilterDto) {
+    try {
+      const { employeeIds, startDate, endDate, export: exportFormat } = filter as any;
+
+      // Obtener todas las evaluaciones de desempeño registradas
+      const evaluations = await this.prisma.performance_evaluations.findMany({
+        include: {
+          career_history: {
+            orderBy: [
+              { event_date: 'desc' },
+              { created_at: 'desc' },
+            ],
+            take: 1,
+          },
+        },
+      });
+
+      // Filtrar evaluaciones por rango de fecha y empleados, y agrupar por empleado
+      const byEmployee = new Map<number, { count: number; sums: any }>();
+      let totalEvaluations = 0;
+
+      for (const evaluation of evaluations) {
+        const evalDate = new Date(evaluation.evaluation_date);
+        if (startDate && evalDate < new Date(startDate)) continue;
+        if (endDate && evalDate > new Date(endDate)) continue;
+
+        // Obtener el id_employee desde el career_history asociado
+        const careerEntry = evaluation.career_history && evaluation.career_history.length > 0 ? evaluation.career_history[0] : null;
+        if (!careerEntry) continue;
+
+        const empId = careerEntry.id_employee;
+
+        // Filtrar por employeeIds si se proporcionan
+        if (employeeIds && employeeIds.length && !employeeIds.includes(empId)) continue;
+
+        if (!byEmployee.has(empId)) {
+          byEmployee.set(empId, {
+            count: 0,
+            sums: {
+              communication: 0,
+              technical_proficiency: 0,
+              leadership_influence: 0,
+              innovation: 0,
+              reliability: 0,
+            },
+          });
+        }
+
+        const rec = byEmployee.get(empId) as any;
+        rec.count += 1;
+        rec.sums.communication += evaluation.communication ?? 0;
+        rec.sums.technical_proficiency += evaluation.technical_proficiency ?? 0;
+        rec.sums.leadership_influence += evaluation.leadership_influence ?? 0;
+        rec.sums.innovation += evaluation.innovation ?? 0;
+        rec.sums.reliability += evaluation.reliability ?? 0;
+        totalEvaluations += 1;
+      }
+
+      const data: any[] = [];
+      let overallSum = 0;
+      let overallCount = 0;
+
+      for (const [empId, rec] of byEmployee) {
+        const avgComm = rec.sums.communication / rec.count;
+        const avgTech = rec.sums.technical_proficiency / rec.count;
+        const avgLead = rec.sums.leadership_influence / rec.count;
+        const avgInno = rec.sums.innovation / rec.count;
+        const avgRel = rec.sums.reliability / rec.count;
+
+        const overall = (avgComm + avgTech + avgLead + avgInno + avgRel) / 5;
+
+        data.push({
+          id_employee: empId,
+          averages: {
+            communication: Number(avgComm.toFixed(2)),
+            technical_proficiency: Number(avgTech.toFixed(2)),
+            leadership_influence: Number(avgLead.toFixed(2)),
+            innovation: Number(avgInno.toFixed(2)),
+            reliability: Number(avgRel.toFixed(2)),
+          },
+          overall_score: Number(overall.toFixed(2)),
+          evaluations: rec.count,
+        });
+
+        overallSum += overall;
+        overallCount += 1;
+      }
+
+      const overallScore = overallCount ? Number((overallSum / overallCount).toFixed(2)) : null;
+
+      const meta = {
+        totalEmployees: data.length,
+        totalEvaluations,
+        overallScore,
+        startDate: startDate ?? null,
+        endDate: endDate ?? null,
+      };
+
+      if (exportFormat === 'csv') {
+        const headers = [
+          'id_employee',
+          'communication',
+          'technical_proficiency',
+          'leadership_influence',
+          'innovation',
+          'reliability',
+          'overall_score',
+          'evaluations',
+        ];
+        const rows = data.map((r) =>
+          [
+            r.id_employee,
+            r.averages.communication,
+            r.averages.technical_proficiency,
+            r.averages.leadership_influence,
+            r.averages.innovation,
+            r.averages.reliability,
+            r.overall_score,
+            r.evaluations,
+          ].join(',')
+        );
+        const csv = [headers.join(','), ...rows].join('\n');
+        return { csv, meta };
+      }
+
+      if (data.length === 0) {
+        return { data: [], meta, message: 'No hay información disponible para el rango seleccionado' };
+      }
+
+      return { data, meta };
+    } catch (error) {
+      throw new RpcException({
+        status: HttpStatus.BAD_REQUEST,
+        message: error instanceof Error ? error.message : 'Error desconocido al generar reporte',
+      });
+    }
+  }
+
   async findOne(id: number) {
     try {
       const performance_evaluation = await this.prisma.performance_evaluations.findUnique({
@@ -88,7 +225,7 @@ export class PerformanceEvaluationService {
     try {
       await this.findOne(id);
 
-      const { id: _, career_history, ...data } = updatePerformanceEvaluationDto as any;
+      const { id: __, ...data } = updatePerformanceEvaluationDto as any;
 
       return await this.prisma.performance_evaluations.update({
         where: {id_evaluation: id},
