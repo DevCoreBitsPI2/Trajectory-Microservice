@@ -26,6 +26,11 @@ export class PerformanceEvaluationController {
     return this.performanceEvaluationService.findOne(id);
   }
 
+  @MessagePattern({cmd: 'findPerformanceEvaluationsByEmployee'})
+  findByEmployee(@Payload() payload: { id_employee: number; paginationDto: PaginationDto }) {
+    return this.performanceEvaluationService.findByEmployee(payload.id_employee, payload.paginationDto);
+  }
+
   @MessagePattern({cmd: 'generateConsolidatedReport'})
   generateConsolidatedReport(@Payload() filter: ReportFilterDto) {
     return this.performanceEvaluationService.generateConsolidatedReport(filter);

@@ -64,6 +64,47 @@ export class PerformanceEvaluationService {
     }
   }
 
+  async findByEmployee(id_employee: number, paginationDto: PaginationDto) {
+    try {
+      const { page = 1, limit = 10 } = paginationDto;
+      const where = {
+        id_employee,
+        type: 'evaluation' as const,
+        id_evaluation: { not: null },
+      };
+      const total = await this.prisma.career_history.count({ where });
+
+      const data = await this.prisma.career_history.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: [
+          { event_date: 'desc' },
+          { created_at: 'desc' },
+          { id_record: 'desc' },
+        ],
+        include: {
+          performance_evaluations: true,
+        },
+      });
+
+      return {
+        data,
+        message: data.length === 0 ? 'No performance evaluations found for this employee' : null,
+        meta: {
+          total,
+          page,
+          lastPage: Math.ceil(total / limit),
+        },
+      };
+    } catch (error) {
+      throw new RpcException({
+        status: HttpStatus.BAD_REQUEST,
+        message: error instanceof Error ? error.message : 'Error desconocido',
+      })
+    }
+  }
+
   async generateConsolidatedReport(filter: ReportFilterDto) {
     try {
       const { employeeIds, startDate, endDate, export: exportFormat } = filter as any;

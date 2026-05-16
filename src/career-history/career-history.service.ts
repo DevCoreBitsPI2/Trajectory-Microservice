@@ -5,7 +5,6 @@ import { NATS_SERVICE } from '@/src/config';
 import { PrismaService } from '@/src/lib/prisma';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { PaginationDto } from '@/src/common';
-import { create } from 'domain';
 
 @Injectable()
 export class CareerHistoryService {
@@ -37,6 +36,27 @@ export class CareerHistoryService {
     }
   }
 
+  async createMany(createCareerHistoryDtos: CreateCareerHistoryDto[]) {
+    try {
+      // Bulk inserts keep upstream updates fast when one business change affects many employees.
+      return await this.prisma.career_history.createMany({
+        data: createCareerHistoryDtos.map((careerHistory) => ({
+          description: careerHistory.description,
+          event_date: careerHistory.event_date,
+          type: careerHistory.type,
+          id_employee: careerHistory.id_employee,
+          created_at: new Date(),
+          id_evaluation: careerHistory.id_evaluation,
+        })),
+      });
+    } catch (error) {
+      throw new RpcException({
+        status: HttpStatus.BAD_REQUEST,
+        message: error instanceof Error ? error.message : 'Error desconocido',
+      })
+    }
+  }
+
   async findAll(paginationDto: PaginationDto) {
     try{
       const total = await this.prisma.career_history.count();
@@ -52,6 +72,43 @@ export class CareerHistoryService {
         total,
         page: currentPage,
         lastPage: Math.ceil(total / perPage),
+        },
+      };
+    } catch (error) {
+      throw new RpcException({
+        status: HttpStatus.BAD_REQUEST,
+        message: error instanceof Error ? error.message : 'Error desconocido',
+      })
+    }
+  }
+
+  async findByEmployee(id_employee: number, paginationDto: PaginationDto) {
+    try {
+      const { page = 1, limit = 10 } = paginationDto;
+      const where = { id_employee };
+      const total = await this.prisma.career_history.count({ where });
+
+      const data = await this.prisma.career_history.findMany({
+        where,
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: [
+          { event_date: 'desc' },
+          { created_at: 'desc' },
+          { id_record: 'desc' },
+        ],
+        include: {
+          performance_evaluations: true,
+        },
+      });
+
+      return {
+        data,
+        message: data.length === 0 ? 'No career history records found for this employee' : null,
+        meta: {
+          total,
+          page,
+          lastPage: Math.ceil(total / limit),
         },
       };
     } catch (error) {
