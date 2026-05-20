@@ -14,9 +14,19 @@ export class CareerHistoryController {
     return this.careerHistoryService.create(createCareerHistoryDto);
   }
 
+  @MessagePattern({cmd: 'createManyCareerHistory'})
+  createMany(@Payload() createCareerHistoryDtos: CreateCareerHistoryDto[]) {
+    return this.careerHistoryService.createMany(createCareerHistoryDtos);
+  }
+
   @MessagePattern({cmd: 'findAllCareerHistory'})
   findAll(@Payload() paginationDto: PaginationDto) {
     return this.careerHistoryService.findAll(paginationDto);
+  }
+
+  @MessagePattern({cmd: 'findCareerHistoryByEmployee'})
+  findByEmployee(@Payload() payload: { id_employee: number; paginationDto: PaginationDto }) {
+    return this.careerHistoryService.findByEmployee(payload.id_employee, payload.paginationDto);
   }
 
   @MessagePattern({cmd: 'findOneCareerHistory'})
